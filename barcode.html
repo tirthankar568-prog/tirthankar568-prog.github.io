@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>ID Card Barcode Scanner</title>
+  <title>Code 128 ID Scanner</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     * {
@@ -23,8 +23,8 @@
     }
     header {
       width: 100%;
-      max-width: 400px;
-      margin: 8px 0 16px 0;
+      max-width: 420px;
+      margin: 8px 0 14px 0;
       text-align: center;
     }
     h1 {
@@ -32,15 +32,16 @@
       font-weight: 600;
       color: #e2e8f0;
     }
-    .sub-tag {
+    .subtitle {
       font-size: 0.75rem;
       color: #94a3b8;
       margin-top: 4px;
+      letter-spacing: 0.03em;
     }
     #scanner-wrapper {
       position: relative;
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid #334155;
@@ -51,23 +52,38 @@
       width: 100%;
     }
 
+    /* Target Reticle */
+    .scan-guide {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      height: 60%;
+      border: 2px dashed rgba(56, 189, 248, 0.4);
+      border-radius: 12px;
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.35);
+    }
+
     /* Floating Result Overlay */
     #resultOverlay {
       position: absolute;
       inset: 0;
-      background: rgba(15, 23, 42, 0.88);
+      background: rgba(15, 23, 42, 0.92);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 16px;
+      padding: 18px;
       z-index: 20;
     }
     .overlay-body {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       overflow-y: auto;
     }
     .card-label {
@@ -80,11 +96,12 @@
     }
     .mono-text {
       font-family: monospace;
-      font-size: 0.9rem;
+      font-size: 0.95rem;
+      font-weight: 600;
       color: #38bdf8;
       word-break: break-all;
       background: #0f172a;
-      padding: 8px 10px;
+      padding: 10px 12px;
       border-radius: 6px;
       border: 1px solid #334155;
     }
@@ -105,7 +122,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: 2px;
+      margin-top: 4px;
     }
     .badge {
       display: inline-block;
@@ -131,8 +148,7 @@
       font-weight: 700;
       cursor: pointer;
       text-align: center;
-      text-decoration: none;
-      margin-top: 12px;
+      margin-top: 14px;
     }
     .btn-action:active {
       background-color: #0ea5e9;
@@ -144,7 +160,7 @@
     /* Log Card Section */
     .card {
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       margin-top: 14px;
       padding: 14px 16px;
       background: #1e293b;
@@ -251,24 +267,24 @@
 <body>
 
   <header>
-    <h1>ID Barcode Scanner</h1>
-    <div class="sub-tag">Optimized for Code 128 &amp; Code 39</div>
+    <h1>ID Card Scanner</h1>
+    <div class="subtitle">Code 128 &bull; Any Angle &bull; Auto-detect</div>
   </header>
 
-  <!-- Camera Container with Floating Overlay -->
   <div id="scanner-wrapper">
     <div id="reader"></div>
+    <div class="scan-guide"></div>
 
     <div id="resultOverlay" class="hidden">
       <div class="overlay-body">
         <div>
-          <div class="card-label">Scanned ID Barcode</div>
+          <div class="card-label">Scanned ID / Code 128</div>
           <div id="tagDisplay" class="mono-text"></div>
         </div>
 
         <div>
           <div class="card-label">Server Response</div>
-          <div id="responseDisplay" class="response-box">Waiting for reply...</div>
+          <div id="responseDisplay" class="response-box">Waiting for Apps Script reply...</div>
         </div>
 
         <div class="badge-bar">
@@ -281,7 +297,6 @@
     </div>
   </div>
 
-  <!-- Recent Scans Log -->
   <div class="card" id="historyCard">
     <div class="card-header-row">
       <div>
@@ -308,18 +323,22 @@
     const clearBtn = document.getElementById("clearBtn");
     const logCount = document.getElementById("logCount");
 
-    // Restrict formats strictly to Code 128 and Code 39
+    // Strictly limit decoding engine to CODE_128 for maximum performance and accuracy
     const scanner = new Html5Qrcode("reader", {
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39
-      ],
-      verbose: false
+      formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ],
+      verbose: false,
+      experimentalFeatures: {
+        useBarCodeDetectorIfSupported: true
+      }
     });
 
     let isCameraActive = false;
     let isPaused = false;
     let scanLogs = [];
+    let rotationCanvas = document.createElement("canvas");
+    let rotationCtx = rotationCanvas.getContext("2d", { willReadFrequently: true });
+    let rotationAngles = [0, 90, 45, 135];
+    let angleIndex = 0;
 
     function renderLogs() {
       logCount.innerText = scanLogs.length;
@@ -384,14 +403,14 @@
         const gain = audioCtx.createGain();
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-        osc.frequency.value = 850;
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        osc.frequency.value = 1100;
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.12);
+        osc.stop(audioCtx.currentTime + 0.1);
       } catch (e) {}
 
       if ("vibrate" in navigator) {
-        navigator.vibrate([70, 50, 70]);
+        navigator.vibrate(100);
       }
     }
 
@@ -400,18 +419,40 @@
       badge.innerText = badgeText;
     }
 
+    // Rotates the frame across multiple angles to catch barcodes at vertical/slanted orientations
+    function omnidirectionalFramePreprocessor(canvas) {
+      const angle = rotationAngles[angleIndex];
+      angleIndex = (angleIndex + 1) % rotationAngles.length;
+
+      if (angle === 0) return canvas;
+
+      rotationCanvas.width = canvas.width;
+      rotationCanvas.height = canvas.height;
+      rotationCtx.clearRect(0, 0, rotationCanvas.width, rotationCanvas.height);
+      rotationCtx.save();
+      rotationCtx.translate(rotationCanvas.width / 2, rotationCanvas.height / 2);
+      rotationCtx.rotate((angle * Math.PI) / 180);
+      rotationCtx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+      rotationCtx.restore();
+
+      return rotationCanvas;
+    }
+
     async function initCamera() {
-      // Wide rectangular view box tailored for standard ID card 1D barcodes
       const scannerConfig = {
         fps: 20,
+        // Wider aspect ratio suited for ID cards
+        aspectRatio: 1.333333,
+        // Dynamic scan area occupying most of the view
         qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const width = Math.floor(viewfinderWidth * 0.85);
-          const height = Math.floor(viewfinderHeight * 0.35);
+          const width = Math.floor(viewfinderWidth * 0.88);
+          const height = Math.floor(viewfinderHeight * 0.65);
           return { width: width, height: height };
         },
-        aspectRatio: 1.333334,
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true
+        videoConstraints: {
+          facingMode: "environment",
+          focusMode: "continuous",
+          advanced: [{ focusMode: "continuous" }]
         }
       };
 
@@ -427,8 +468,7 @@
       } catch (err) {
         scannerWrapper.innerHTML = 
           `<div style="padding: 24px; text-align: center; color: #ef4444; font-size: 0.9rem;">
-            Camera permission was not granted or camera is unavailable.<br><br>
-            Please allow access in your browser settings.
+            Unable to access camera. Please ensure permissions are granted and the page is served over HTTPS.
           </div>`;
       }
     }
@@ -469,7 +509,7 @@
       
       script.onerror = function() {
         setStatus("fail", "ERROR");
-        const errMsg = "Error contacting server.";
+        const errMsg = "Error contacting Google Apps Script.";
         responseDisplay.innerText = errMsg;
         if (activeLogEntryId) {
           updateLogEntry(activeLogEntryId, errMsg, false);
@@ -491,15 +531,12 @@
       triggerScanFeedback();
       const cleanTag = decodedText.trim();
 
-      // Show overlay
       tagDisplay.innerText = cleanTag;
-      responseDisplay.innerText = "Querying server...";
+      responseDisplay.innerText = "Querying Google Apps Script...";
       setStatus("sending", "SENDING");
       resultOverlay.classList.remove("hidden");
 
-      // Register entry in recent scans log
       activeLogEntryId = addLogEntry(cleanTag);
-
       sendViaJSONP(cleanTag);
     }
 
