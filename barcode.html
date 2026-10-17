@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Fast Code 128 ID Scanner</title>
+  <title>ID Barcode Scanner</title>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" type="text/javascript"></script>
   <style>
     * {
@@ -44,11 +44,15 @@
       position: relative;
       width: 100%;
       max-width: 420px;
+      min-height: 320px;
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid #334155;
       background: #000;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
     #reader {
       width: 100%;
@@ -58,7 +62,7 @@
       border-radius: 14px;
     }
 
-    /* Target Reticle */
+    /* Reticle */
     .scan-guide {
       position: absolute;
       top: 50%;
@@ -81,6 +85,44 @@
       background: #ef4444;
       opacity: 0.8;
       box-shadow: 0 0 4px #ef4444;
+    }
+
+    /* Error Message Box inside Scanner Wrapper */
+    #errorBox {
+      padding: 24px 20px;
+      text-align: center;
+      background: #1e293b;
+      border-radius: 12px;
+      margin: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .error-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ef4444;
+    }
+    .error-desc {
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .retry-btn {
+      padding: 9px 16px;
+      background-color: #38bdf8;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 0.82rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 6px;
+    }
+    .retry-btn:active {
+      background-color: #0ea5e9;
     }
 
     /* Floating Result Overlay */
@@ -173,7 +215,7 @@
       display: none !important;
     }
 
-    /* Log Card Section */
+    /* History Card */
     .card {
       width: 100%;
       max-width: 420px;
@@ -284,13 +326,20 @@
 
   <header>
     <h1>ID Card Scanner</h1>
-    <div class="subtitle">High-Res Barcode Engine &bull; Code 128</div>
+    <div class="subtitle">Code 128 Dedicated Reader</div>
   </header>
 
   <div id="scanner-wrapper">
     <div id="reader"></div>
-    <div class="scan-guide">
+    <div class="scan-guide" id="scanGuide">
       <div class="guide-line"></div>
+    </div>
+
+    <!-- Error message fallback display -->
+    <div id="errorBox" class="hidden">
+      <div class="error-title" id="errorTitle">Camera Access Required</div>
+      <div class="error-desc" id="errorDesc"></div>
+      <button class="retry-btn" id="retryBtn">Try Again</button>
     </div>
 
     <div id="resultOverlay" class="hidden">
@@ -332,6 +381,12 @@
     const SCRIPT_BASE = "https://script.google.com/macros/s/AKfycbwCBubJiXwKVKoLAltV1VEvHcfTT0r0FbEOAyK6b6y_pHKf8HAyRQ2GnfjDqr9Kgl_g/exec";
 
     const scannerWrapper = document.getElementById("scanner-wrapper");
+    const scanGuide = document.getElementById("scanGuide");
+    const errorBox = document.getElementById("errorBox");
+    const errorTitle = document.getElementById("errorTitle");
+    const errorDesc = document.getElementById("errorDesc");
+    const retryBtn = document.getElementById("retryBtn");
+
     const resultOverlay = document.getElementById("resultOverlay");
     const tagDisplay = document.getElementById("tagDisplay");
     const responseDisplay = document.getElementById("responseDisplay");
@@ -341,18 +396,7 @@
     const clearBtn = document.getElementById("clearBtn");
     const logCount = document.getElementById("logCount");
 
-    // Primary fast config: Leverage native BarcodeDetector API if present
-    const scanner = new Html5Qrcode("reader", {
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39
-      ],
-      verbose: false,
-      experimentalFeatures: {
-        useBarCodeDetectorIfSupported: true
-      }
-    });
-
+    let scanner = null;
     let isCameraActive = false;
     let isPaused = false;
     let scanLogs = [];
@@ -436,54 +480,118 @@
       badge.innerText = badgeText;
     }
 
+    function showCameraError(err) {
+      scanGuide.classList.add("hidden");
+      errorBox.classList.remove("hidden");
+
+      // Verify protocol
+      const isSecure = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      
+      if (!isSecure) {
+        errorTitle.innerText = "Insecure Origin (HTTPS Required)";
+        errorDesc.innerHTML = `Camera access is blocked because this page is not served over <b>HTTPS</b> or <b>localhost</b>.<br><br>Please run on a local development server or host via HTTPS.`;
+        return;
+      }
+
+      const errString = String(err && (err.name || err.message) ? (err.name + ": " + err.message) : err);
+
+      if (errString.includes("NotAllowedError") || errString.includes("Permission denied")) {
+        errorTitle.innerText = "Permission Denied";
+        errorDesc.innerHTML = `Camera permission was blocked.<br><br>Tap the <b>site/lock icon</b> in your browser's address bar &rarr; <b>Site settings</b> &rarr; Allow <b>Camera</b>, then tap Try Again.`;
+      } else if (errString.includes("NotFoundError") || errString.includes("DevicesNotFoundError")) {
+        errorTitle.innerText = "No Camera Found";
+        errorDesc.innerText = "No suitable rear camera was detected on this device.";
+      } else if (errString.includes("NotReadableError") || errString.includes("TrackStartError")) {
+        errorTitle.innerText = "Camera Is In Use";
+        errorDesc.innerText = "Another application or browser tab is currently using the camera. Please close other camera tabs and retry.";
+      } else {
+        errorTitle.innerText = "Camera Initialization Failed";
+        errorDesc.innerHTML = `Unable to start video feed: <br><code style="color:#f87171; font-size:0.75rem;">${errString}</code>`;
+      }
+    }
+
     async function initCamera() {
-      // High-resolution camera constraints solve the 1D line-blur issue
-      const cameraConstraints = {
-        facingMode: "environment",
-        width: { min: 1280, ideal: 1920, max: 2560 },
-        height: { min: 720, ideal: 1080, max: 1440 },
-        advanced: [
-          { focusMode: "continuous" },
-          { zoom: 1.0 }
-        ]
-      };
+      errorBox.classList.add("hidden");
+      scanGuide.classList.remove("hidden");
+
+      // Re-create Html5Qrcode instance
+      if (!scanner) {
+        scanner = new Html5Qrcode("reader", {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39
+          ],
+          verbose: false,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          }
+        });
+      }
 
       const scannerConfig = {
-        fps: 25, // Higher sampling rate for snappy capture
-        disableFlip: true // Avoid unnecessary mirror operations
-        // Removed artificial qrbox cropping so the full camera frame is decoded at any orientation
+        fps: 25,
+        disableFlip: true
       };
 
+      // Tier 1: Try flexible rear camera constraints
       try {
         await scanner.start(
-          cameraConstraints,
+          {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920, min: 640 },
+            height: { ideal: 1080, min: 480 }
+          },
           scannerConfig,
           onScanSuccess,
-          () => {} // Frame drop callback (intentionally silent)
+          () => {}
         );
-
         isCameraActive = true;
         isPaused = false;
-      } catch (err) {
-        // Fallback if 1080p is rejected by a specific camera module
-        try {
+        return;
+      } catch (tier1Err) {
+        console.warn("Tier 1 constraint failed, trying Tier 2 fallback:", tier1Err);
+      }
+
+      // Tier 2: Try basic facingMode environment
+      try {
+        await scanner.start(
+          { facingMode: "environment" },
+          scannerConfig,
+          onScanSuccess,
+          () => {}
+        );
+        isCameraActive = true;
+        isPaused = false;
+        return;
+      } catch (tier2Err) {
+        console.warn("Tier 2 fallback failed, trying Tier 3 device enumeration:", tier2Err);
+      }
+
+      // Tier 3: Enumerate video devices and select the last one (usually back camera)
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length > 0) {
+          const selectedCam = devices[devices.length - 1];
           await scanner.start(
-            { facingMode: "environment" },
+            selectedCam.id,
             scannerConfig,
             onScanSuccess,
             () => {}
           );
           isCameraActive = true;
           isPaused = false;
-        } catch (fallbackErr) {
-          scannerWrapper.innerHTML = 
-            `<div style="padding: 24px; text-align: center; color: #ef4444; font-size: 0.9rem;">
-              Camera permission denied or camera unavailable.<br><br>
-              Make sure to open via HTTPS.
-            </div>`;
+          return;
+        } else {
+          throw new Error("No video devices discovered.");
         }
+      } catch (tier3Err) {
+        showCameraError(tier3Err);
       }
     }
+
+    retryBtn.addEventListener("click", () => {
+      initCamera();
+    });
 
     function resumeScanning() {
       resultOverlay.classList.add("hidden");
@@ -556,6 +664,7 @@
       resumeScanning();
     });
 
+    // Run on load
     initCamera();
   </script>
 </body>
