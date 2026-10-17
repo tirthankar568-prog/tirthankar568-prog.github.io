@@ -302,15 +302,7 @@
     const clearBtn = document.getElementById("clearBtn");
     const logCount = document.getElementById("logCount");
 
-    // Enable native BarcodeDetector when supported (drastically improves iOS Safari scanning)
-    const scanner = new Html5Qrcode("reader", {
-      formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
-      experimentalFeatures: {
-        useBarCodeDetectorIfSupported: true
-      },
-      verbose: false
-    });
-
+    const scanner = new Html5Qrcode("reader");
     let isCameraActive = false;
     let isPaused = false;
     let scanLogs = [];
@@ -337,7 +329,7 @@
       `).join('');
     }
 
-    function addLogEntry(tagId) {
+    function addLogEntry(tagId, initialStatus) {
       const now = new Date();
       const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       
@@ -394,90 +386,28 @@
       badge.innerText = badgeText;
     }
 
-    async function applyCameraZoom() {
-      try {
-        const trackCapabilities = scanner.getRunningTrackCapabilities ? scanner.getRunningTrackCameraCapabilities() : null;
-        if (trackCapabilities && trackCapabilities.zoomFeature && trackCapabilities.zoomFeature().isSupported()) {
-          const zoom = trackCapabilities.zoomFeature();
-          const targetZoom = Math.min(zoom.max(), 2.0);
-          zoom.apply(targetZoom);
-        }
-      } catch (err) {
-        console.warn("Hardware zoom adjustment skipped:", err);
-      }
-    }
-
     async function initCamera() {
       const scannerConfig = {
-        fps: 20,
-        qrbox: function(viewfinderWidth, viewfinderHeight) {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          return { width: Math.floor(minEdge * 0.85), height: Math.floor(minEdge * 0.85) };
-        },
-        aspectRatio: 1.0,
-        disableFlip: true
-      };
-
-      // Tier 1: Soft ideal HD constraints (prevents iOS OverconstrainedError)
-      const primaryConstraints = {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        fps: 15,
+        qrbox: { width: 220, height: 220 },
+        aspectRatio: 1.0
       };
 
       try {
         await scanner.start(
-          primaryConstraints,
+          { facingMode: "environment" },
           scannerConfig,
           onScanSuccess,
           () => {}
         );
         isCameraActive = true;
         isPaused = false;
-        setTimeout(applyCameraZoom, 500);
-      } catch (err1) {
-        console.warn("Primary constraints failed, falling back to basic back camera...", err1);
-        
-        try {
-          // Tier 2: Basic environment string fallback
-          await scanner.start(
-            { facingMode: "environment" },
-            scannerConfig,
-            onScanSuccess,
-            () => {}
-          );
-          isCameraActive = true;
-          isPaused = false;
-        } catch (err2) {
-          console.warn("Basic constraints failed, falling back to default camera...", err2);
-
-          try {
-            // Tier 3: Bare request
-            await scanner.start(
-              {},
-              scannerConfig,
-              onScanSuccess,
-              () => {}
-            );
-            isCameraActive = true;
-            isPaused = false;
-          } catch (fatalErr) {
-            let errorText = fatalErr.message || fatalErr.name || "Camera access denied or unavailable.";
-            
-            if (location.protocol !== "https:" && location.hostname !== "localhost") {
-              errorText = "Camera access requires HTTPS. Please open this page via an HTTPS URL.";
-            }
-
-            scannerWrapper.innerHTML = `
-              <div style="padding: 24px; text-align: center; color: #f87171; font-size: 0.88rem; line-height: 1.5;">
-                <strong style="display:block; margin-bottom: 8px; font-size: 1rem; color: #ef4444;">Camera Inaccessible</strong>
-                ${errorText}<br><br>
-                <span style="color: #94a3b8; font-size: 0.8rem;">
-                  Make sure you are on HTTPS. On Safari, tap the page settings icon in the address bar &gt; Website Settings &gt; Camera &gt; Allow.
-                </span>
-              </div>`;
-          }
-        }
+      } catch (err) {
+        scannerWrapper.innerHTML = 
+          `<div style="padding: 24px; text-align: center; color: #ef4444; font-size: 0.9rem;">
+            Camera permission was not granted or camera is unavailable.<br><br>
+            Please allow access in your browser settings.
+          </div>`;
       }
     }
 
@@ -539,12 +469,15 @@
       triggerScanFeedback();
       const cleanTag = decodedText.trim();
 
+      // Show overlay
       tagDisplay.innerText = cleanTag;
       responseDisplay.innerText = "Querying Google Apps Script...";
       setStatus("sending", "SENDING");
       resultOverlay.classList.remove("hidden");
 
+      // Register entry in recent scans log
       activeLogEntryId = addLogEntry(cleanTag);
+
       sendViaJSONP(cleanTag);
     }
 
