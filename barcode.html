@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Code 128 ID Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <title>Fast Code 128 ID Scanner</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" type="text/javascript"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -24,19 +24,21 @@
     header {
       width: 100%;
       max-width: 420px;
-      margin: 8px 0 14px 0;
+      margin: 6px 0 12px 0;
       text-align: center;
     }
     h1 {
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       font-weight: 600;
       color: #e2e8f0;
     }
     .subtitle {
-      font-size: 0.75rem;
-      color: #94a3b8;
-      margin-top: 4px;
-      letter-spacing: 0.03em;
+      font-size: 0.72rem;
+      color: #38bdf8;
+      margin-top: 3px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 600;
     }
     #scanner-wrapper {
       position: relative;
@@ -45,11 +47,15 @@
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid #334155;
-      background: #1e293b;
+      background: #000;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
     }
     #reader {
       width: 100%;
+    }
+    #reader video {
+      object-fit: cover !important;
+      border-radius: 14px;
     }
 
     /* Target Reticle */
@@ -58,20 +64,30 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 80%;
-      height: 60%;
-      border: 2px dashed rgba(56, 189, 248, 0.4);
-      border-radius: 12px;
+      width: 82%;
+      height: 48%;
+      border: 2px solid rgba(56, 189, 248, 0.7);
+      border-radius: 10px;
       pointer-events: none;
       z-index: 10;
-      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.35);
+      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+    }
+    .guide-line {
+      position: absolute;
+      top: 50%;
+      left: 6%;
+      right: 6%;
+      height: 2px;
+      background: #ef4444;
+      opacity: 0.8;
+      box-shadow: 0 0 4px #ef4444;
     }
 
     /* Floating Result Overlay */
     #resultOverlay {
       position: absolute;
       inset: 0;
-      background: rgba(15, 23, 42, 0.92);
+      background: rgba(15, 23, 42, 0.94);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       display: flex;
@@ -96,8 +112,8 @@
     }
     .mono-text {
       font-family: monospace;
-      font-size: 0.95rem;
-      font-weight: 600;
+      font-size: 1rem;
+      font-weight: 700;
       color: #38bdf8;
       word-break: break-all;
       background: #0f172a;
@@ -268,12 +284,14 @@
 
   <header>
     <h1>ID Card Scanner</h1>
-    <div class="subtitle">Code 128 &bull; Any Angle &bull; Auto-detect</div>
+    <div class="subtitle">High-Res Barcode Engine &bull; Code 128</div>
   </header>
 
   <div id="scanner-wrapper">
     <div id="reader"></div>
-    <div class="scan-guide"></div>
+    <div class="scan-guide">
+      <div class="guide-line"></div>
+    </div>
 
     <div id="resultOverlay" class="hidden">
       <div class="overlay-body">
@@ -323,9 +341,12 @@
     const clearBtn = document.getElementById("clearBtn");
     const logCount = document.getElementById("logCount");
 
-    // Strictly limit decoding engine to CODE_128 for maximum performance and accuracy
+    // Primary fast config: Leverage native BarcodeDetector API if present
     const scanner = new Html5Qrcode("reader", {
-      formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ],
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39
+      ],
       verbose: false,
       experimentalFeatures: {
         useBarCodeDetectorIfSupported: true
@@ -335,10 +356,6 @@
     let isCameraActive = false;
     let isPaused = false;
     let scanLogs = [];
-    let rotationCanvas = document.createElement("canvas");
-    let rotationCtx = rotationCanvas.getContext("2d", { willReadFrequently: true });
-    let rotationAngles = [0, 90, 45, 135];
-    let angleIndex = 0;
 
     function renderLogs() {
       logCount.innerText = scanLogs.length;
@@ -403,14 +420,14 @@
         const gain = audioCtx.createGain();
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-        osc.frequency.value = 1100;
+        osc.frequency.value = 1200;
         gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.1);
+        osc.stop(audioCtx.currentTime + 0.08);
       } catch (e) {}
 
       if ("vibrate" in navigator) {
-        navigator.vibrate(100);
+        navigator.vibrate(80);
       }
     }
 
@@ -419,57 +436,52 @@
       badge.innerText = badgeText;
     }
 
-    // Rotates the frame across multiple angles to catch barcodes at vertical/slanted orientations
-    function omnidirectionalFramePreprocessor(canvas) {
-      const angle = rotationAngles[angleIndex];
-      angleIndex = (angleIndex + 1) % rotationAngles.length;
-
-      if (angle === 0) return canvas;
-
-      rotationCanvas.width = canvas.width;
-      rotationCanvas.height = canvas.height;
-      rotationCtx.clearRect(0, 0, rotationCanvas.width, rotationCanvas.height);
-      rotationCtx.save();
-      rotationCtx.translate(rotationCanvas.width / 2, rotationCanvas.height / 2);
-      rotationCtx.rotate((angle * Math.PI) / 180);
-      rotationCtx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
-      rotationCtx.restore();
-
-      return rotationCanvas;
-    }
-
     async function initCamera() {
+      // High-resolution camera constraints solve the 1D line-blur issue
+      const cameraConstraints = {
+        facingMode: "environment",
+        width: { min: 1280, ideal: 1920, max: 2560 },
+        height: { min: 720, ideal: 1080, max: 1440 },
+        advanced: [
+          { focusMode: "continuous" },
+          { zoom: 1.0 }
+        ]
+      };
+
       const scannerConfig = {
-        fps: 20,
-        // Wider aspect ratio suited for ID cards
-        aspectRatio: 1.333333,
-        // Dynamic scan area occupying most of the view
-        qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const width = Math.floor(viewfinderWidth * 0.88);
-          const height = Math.floor(viewfinderHeight * 0.65);
-          return { width: width, height: height };
-        },
-        videoConstraints: {
-          facingMode: "environment",
-          focusMode: "continuous",
-          advanced: [{ focusMode: "continuous" }]
-        }
+        fps: 25, // Higher sampling rate for snappy capture
+        disableFlip: true // Avoid unnecessary mirror operations
+        // Removed artificial qrbox cropping so the full camera frame is decoded at any orientation
       };
 
       try {
         await scanner.start(
-          { facingMode: "environment" },
+          cameraConstraints,
           scannerConfig,
           onScanSuccess,
-          () => {}
+          () => {} // Frame drop callback (intentionally silent)
         );
+
         isCameraActive = true;
         isPaused = false;
       } catch (err) {
-        scannerWrapper.innerHTML = 
-          `<div style="padding: 24px; text-align: center; color: #ef4444; font-size: 0.9rem;">
-            Unable to access camera. Please ensure permissions are granted and the page is served over HTTPS.
-          </div>`;
+        // Fallback if 1080p is rejected by a specific camera module
+        try {
+          await scanner.start(
+            { facingMode: "environment" },
+            scannerConfig,
+            onScanSuccess,
+            () => {}
+          );
+          isCameraActive = true;
+          isPaused = false;
+        } catch (fallbackErr) {
+          scannerWrapper.innerHTML = 
+            `<div style="padding: 24px; text-align: center; color: #ef4444; font-size: 0.9rem;">
+              Camera permission denied or camera unavailable.<br><br>
+              Make sure to open via HTTPS.
+            </div>`;
+        }
       }
     }
 
