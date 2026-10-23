@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
@@ -213,7 +212,7 @@
 <span class="material-symbols-outlined absolute right-2.5 top-3 text-primary pointer-events-none text-xl">expand_more</span>
 </div>
 </section>
-<!-- Student Assessment List with Exact 8 Criteria -->
+<!-- Student Assessment List with Dynamic Criteria -->
 <section class="flex flex-col gap-4" id="students-container">
 <div class="bg-surface-container-lowest rounded-2xl p-8 shadow-sm border border-surface-container text-center flex flex-col items-center justify-center gap-2">
 <span class="material-symbols-outlined text-outline text-3xl">group</span>
@@ -245,27 +244,17 @@
 <!-- Scripts -->
 <script>
     /* =====================================================================
-       GLOBAL CONFIG & GOOGLE APPS SCRIPT URLS
-       ===================================================================== */
+        GLOBAL CONFIG & GOOGLE APPS SCRIPT URLS
+        ===================================================================== */
     const SCANNER_SCRIPT_BASE = "https://script.google.com/macros/s/AKfycbwCBubJiXwKVKoLAltV1VEvHcfTT0r0FbEOAyK6b6y_pHKf8HAyRQ2GnfjDqr9Kgl_g/exec";
     const ASSESSMENT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcSoARwICqgHDAaxQdM98L2GZPGgdRWDnenntWKj6qOxUvE2IL2GHBR59WUZEIlwU2kA/exec';
     const DISPLAY_DURATION_MS = 2500;
 
-    // 8 Exact Evaluation Criteria from Star of the Month.html
-    const EVALUATION_CRITERIA = [
-      { key: "dressCode", label: "Dress Code", desc: "Wearing mandatory innerwear and no jewelry." },
-      { key: "footwear", label: "Footwear", desc: "Wearing clean, polished shoes and white socks." },
-      { key: "grooming", label: "Grooming & Hygiene", desc: "Maintained neatness, including trimmed nails and tidy hair." },
-      { key: "schoolBag", label: "School Bag", desc: "Carrying the appropriate school bag daily." },
-      { key: "uniform", label: "Uniform & Identity", desc: "Wearing the complete uniform, belt, and ID card correctly." },
-      { key: "academic", label: "Academic Performance", desc: "Demonstrating focus and progress in daily lessons." },
-      { key: "respectful", label: "Respectful Conduct", desc: "Speaking politely to teachers, staff, and elders." },
-      { key: "social", label: "Social Habits", desc: "Exhibiting sharing, teamwork, and patience with peers." }
-    ];
+    let EVALUATION_CRITERIA = [];
 
     /* =====================================================================
-       AUDIO SYNTH BEEP (Web Audio API)
-       ===================================================================== */
+        AUDIO SYNTH BEEP (Web Audio API)
+        ===================================================================== */
     let audioCtx = null;
     function playAudio(frequency, duration) {
       try {
@@ -291,8 +280,8 @@
     }
 
     /* =====================================================================
-       TAB NAVIGATION
-       ===================================================================== */
+        TAB NAVIGATION
+        ===================================================================== */
     function switchTab(tab) {
       const viewScanner = document.getElementById('view-scanner');
       const viewAssessment = document.getElementById('view-assessment');
@@ -325,8 +314,8 @@
     }
 
     /* =====================================================================
-       QR SCANNER LOGIC (html5-qrcode + JSONP Gas Hook)
-       ===================================================================== */
+        QR SCANNER LOGIC
+        ===================================================================== */
     let html5QrCode = null;
     let isScannerRunning = false;
     let isScannerPaused = false;
@@ -386,7 +375,6 @@
         console.warn("Pause error:", e);
       }
 
-      // Display WAIT overlay while verifying
       showOverlay({
         type: 'WAIT',
         title: 'Verifying Tag...',
@@ -396,16 +384,12 @@
         icon: 'hourglass_top'
       });
 
-      // Execute JSONP call to Google Apps Script
       requestTagLookup(decodedText);
     }
 
-    function onScanFailure(error) {
-      // Periodic frame failure is normal when no QR code is in frame
-    }
+    function onScanFailure(error) {}
 
     function requestTagLookup(tagId) {
-      // Remove any prior JSONP script
       const oldScript = document.getElementById('gas-script');
       if (oldScript) oldScript.remove();
 
@@ -414,10 +398,8 @@
       const cleanTag = encodeURIComponent(tagId.trim());
       script.src = `${SCANNER_SCRIPT_BASE}?tagId=${cleanTag}&callback=handleAppsScriptResponse&t=${Date.now()}`;
 
-      // Network error fallback timeout
       const netTimeout = setTimeout(() => {
         if (isScannerPaused) {
-          // If GAS hasn't replied, fallback to simulated verified response so UI continues
           handleAppsScriptResponse({
             status: "SUCCESS",
             name: "Verified Student",
@@ -440,7 +422,6 @@
       document.body.appendChild(script);
     }
 
-    // JSONP Callback
     window.handleAppsScriptResponse = function(data) {
       const status = (data && data.status) ? data.status.toUpperCase() : "FAILED";
       const name = data.name || (status === 'SUCCESS' ? "Verified Student" : "Unknown");
@@ -448,7 +429,7 @@
       const msg = data.message || "";
 
       if (status === "SUCCESS") {
-        playAudio(880, 0.18); // Crisp success beep
+        playAudio(880, 0.18);
         showOverlay({
           type: 'SUCCESS',
           title: `SUCCESS - ${name}`,
@@ -468,7 +449,7 @@
           icon: 'hourglass_top'
         });
       } else {
-        playAudio(220, 0.35); // Low error buzz
+        playAudio(220, 0.35);
         showOverlay({
           type: 'FAILED',
           title: `FAILED - ${name}`,
@@ -486,7 +467,6 @@
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
       });
 
-      // Resume camera after DISPLAY_DURATION_MS
       clearTimeout(overlayTimer);
       overlayTimer = setTimeout(() => {
         hideOverlay();
@@ -563,7 +543,6 @@
       renderLogs();
     }
 
-    // Testing / Simulation button helper
     function simulateScanDemo() {
       const mockTags = [
         { tag: "STU-9402", name: "Aryan Sharma", status: "SUCCESS", msg: "Verified" },
@@ -575,18 +554,23 @@
     }
 
     /* =====================================================================
-       STUDENT ASSESSMENT TRACKER LOGIC (Star of the Month)
-       ===================================================================== */
+        STUDENT ASSESSMENT TRACKER LOGIC
+        ===================================================================== */
     let allStudentsData = [];
     const fallbackStudents = [
-      { id: "101", roll: "01", name: "Aarav Sharma", class: "KG-A" },
-      { id: "102", roll: "02", name: "Ananya Patel", class: "KG-A" },
-      { id: "103", roll: "03", name: "Vihaan Gupta", class: "KG-A" },
-      { id: "104", roll: "04", name: "Diya Verma", class: "KG-B" },
-      { id: "105", roll: "05", name: "Reyansh Mehta", class: "KG-B" },
-      { id: "106", roll: "01", name: "Ishaan Reddy", class: "Nursery" },
-      { id: "107", roll: "02", name: "Saanvi Iyer", class: "Nursery" },
-      { id: "108", roll: "01", name: "Atharv Nair", class: "Class 1" }
+      { id: "101", roll: "01", name: "Aarav Sharma", class: "KG-A", status: "Active" },
+      { id: "102", roll: "02", name: "Ananya Patel", class: "KG-A", status: "Active" }
+    ];
+
+    const fallbackCriteria = [
+      { key: "dressCode", label: "Dress Code", desc: "Wearing mandatory innerwear and no jewelry." },
+      { key: "footwear", label: "Footwear", desc: "Wearing clean, polished shoes and white socks." },
+      { key: "grooming", label: "Grooming & Hygiene", desc: "Maintained neatness, including trimmed nails and tidy hair." },
+      { key: "schoolBag", label: "School Bag", desc: "Carrying the appropriate school bag daily." },
+      { key: "uniform", label: "Uniform & Identity", desc: "Wearing the complete uniform, belt, and ID card correctly." },
+      { key: "academic", label: "Academic Performance", desc: "Demonstrating focus and progress in daily lessons." },
+      { key: "respectful", label: "Respectful Conduct", desc: "Speaking politely to teachers, staff, and elders." },
+      { key: "social", label: "Social Habits", desc: "Exhibiting sharing, teamwork, and patience with peers." }
     ];
 
     async function fetchStudentList() {
@@ -601,6 +585,12 @@
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         
+        if (data.criteria && Array.isArray(data.criteria) && data.criteria.length > 0) {
+          EVALUATION_CRITERIA = data.criteria;
+        } else {
+          EVALUATION_CRITERIA = fallbackCriteria;
+        }
+        
         if (Array.isArray(data) && data.length > 0) {
           allStudentsData = data;
         } else if (data.students && Array.isArray(data.students)) {
@@ -609,8 +599,9 @@
           allStudentsData = fallbackStudents;
         }
       } catch (err) {
-        console.warn("Using fallback student dataset (fetch blocked or offline):", err);
+        console.warn("Using fallback student dataset:", err);
         allStudentsData = fallbackStudents;
+        EVALUATION_CRITERIA = fallbackCriteria;
       }
 
       populateClassSelect();
@@ -628,7 +619,6 @@
         classSelect.appendChild(opt);
       });
 
-      // Default to first class if available
       if (uniqueClasses.length > 0) {
         classSelect.value = uniqueClasses[0];
         onClassChange();
@@ -652,26 +642,36 @@
         return;
       }
 
-      const filtered = allStudentsData.filter(s => (s.class || s.className) === selectedClass);
+      // Filter by class and exclude hidden/inactive status
+      const filtered = allStudentsData.filter(s => {
+        const matchesClass = (s.class || s.className) === selectedClass;
+        const studentStatus = (s.status || "").toLowerCase();
+        
+        const isHidden = studentStatus.includes('hidden') || 
+                         studentStatus.includes('inactive') || 
+                         studentStatus.includes('disable');
+                         
+        return matchesClass && !isHidden;
+      });
+
+      const totalCriteriaCount = EVALUATION_CRITERIA.length;
 
       if (filtered.length === 0) {
         container.innerHTML = `
           <div class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-surface-container text-center text-xs text-on-surface-variant">
-            No students found for ${selectedClass}.
+            No active students found for ${selectedClass}.
           </div>
         `;
         return;
       }
 
-      // Render each student card with the 8 evaluation criteria
       container.innerHTML = filtered.map((stu, idx) => {
         const studentId = stu.id || `s-${idx}`;
         const studentName = stu.name || stu.studentName || `Student ${idx + 1}`;
-        const rollNo = stu.roll || stu.rollNo || (idx + 1);
+        const rollNo = idx + 1;
 
         return `
           <div class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col gap-3" data-student-id="${studentId}" data-student-name="${studentName}">
-            <!-- Header Info -->
             <div class="flex items-center justify-between pb-2.5 border-b border-surface-container">
               <div class="flex items-center gap-2.5">
                 <div class="w-9 h-9 rounded-full bg-primary-fixed text-primary font-bold flex items-center justify-center text-xs">
@@ -683,11 +683,10 @@
                 </div>
               </div>
               <span id="score-${studentId}" class="text-xs font-bold text-primary bg-primary-fixed/60 px-2.5 py-1 rounded-full">
-                0/8 Criteria
+                0/${totalCriteriaCount} Criteria
               </span>
             </div>
 
-            <!-- 8 Criteria Grid -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="criteria-${studentId}">
               ${EVALUATION_CRITERIA.map(c => `
                 <label class="flex items-start gap-2.5 p-2 rounded-xl border border-surface-container hover:bg-surface-container-low transition-colors cursor-pointer select-none">
@@ -710,7 +709,7 @@
       if (!container) return;
       const checkboxes = container.querySelectorAll('input[type="checkbox"]');
       const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
-      document.getElementById(`score-${studentId}`).textContent = `${checked}/8 Criteria`;
+      document.getElementById(`score-${studentId}`).textContent = `${checked}/${checkboxes.length} Criteria`;
     }
 
     async function submitAssessment() {
@@ -730,7 +729,6 @@
         return;
       }
 
-      // Prepare payload
       const studentsPayload = Array.from(studentCards).map(card => {
         const studentId = card.getAttribute('data-student-id');
         const studentName = card.getAttribute('data-student-name');
@@ -747,7 +745,7 @@
         return {
           id: studentId,
           name: studentName,
-          score: `${totalChecked}/8`,
+          score: `${totalChecked}/${checkboxes.length}`,
           evaluations: criteriaResults
         };
       });
@@ -781,11 +779,7 @@
       }
     }
 
-    /* =====================================================================
-       DOM INITIALIZATION
-       ===================================================================== */
     document.addEventListener('DOMContentLoaded', () => {
-      // Preload student list and populate Assessment Tracker by default
       fetchStudentList();
     });
   </script>
