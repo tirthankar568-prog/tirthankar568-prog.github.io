@@ -558,8 +558,8 @@
         ===================================================================== */
     let allStudentsData = [];
     const fallbackStudents = [
-      { id: "101", roll: "01", name: "Aarav Sharma", class: "KG-A", status: "Active" },
-      { id: "102", roll: "02", name: "Ananya Patel", class: "KG-A", status: "Active" }
+      { id: "101", name: "Aarav Sharma", class: "KG-A", status: "Active" },
+      { id: "102", name: "Ananya Patel", class: "KG-A", status: "Active" }
     ];
 
     const fallbackCriteria = [
@@ -668,19 +668,12 @@
       container.innerHTML = filtered.map((stu, idx) => {
         const studentId = stu.id || `s-${idx}`;
         const studentName = stu.name || stu.studentName || `Student ${idx + 1}`;
-        const rollNo = idx + 1;
 
         return `
           <div class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col gap-3" data-student-id="${studentId}" data-student-name="${studentName}">
             <div class="flex items-center justify-between pb-2.5 border-b border-surface-container">
-              <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 rounded-full bg-primary-fixed text-primary font-bold flex items-center justify-center text-xs">
-                  ${String(rollNo).padStart(2, '0')}
-                </div>
-                <div>
-                  <h3 class="text-sm font-bold text-on-surface">${studentName}</h3>
-                  <p class="text-[11px] text-on-surface-variant">Roll #${rollNo} • ${selectedClass}</p>
-                </div>
+              <div>
+                <h3 class="text-sm font-bold text-on-surface">${studentName}</h3>
               </div>
               <span id="score-${studentId}" class="text-xs font-bold text-primary bg-primary-fixed/60 px-2.5 py-1 rounded-full">
                 0/${totalCriteriaCount} Criteria
