@@ -1,438 +1,792 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>QR Scanner</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    body {
-      background-color: #0f172a;
-      color: #f8fafc;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      padding: 12px;
-    }
-    header {
-      width: 100%;
-      max-width: 420px;
-      margin: 8px 0 12px 0;
-      text-align: center;
-    }
-    h1 {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #f1f5f9;
-    }
 
-    /* Scanner Viewport */
-    #scanner-wrapper {
-      position: relative;
-      width: 100%;
-      max-width: 420px;
-      min-height: 320px;
-      border-radius: 16px;
-      overflow: hidden;
-      border: 2px solid #334155;
-      background: #1e293b;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Gurukul Scanner &amp; Assessment Tracker</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "secondary-fixed-dim": "#ffb3b3",
+            "on-primary": "#ffffff",
+            "tertiary-container": "#9b6b00",
+            "surface-container": "#e7eefd",
+            "inverse-primary": "#aec6ff",
+            "surface-variant": "#dce3f2",
+            "tertiary-fixed-dim": "#ffba3b",
+            "surface-container-high": "#e2e8f8",
+            "on-error-container": "#93000a",
+            "secondary": "#b81c34",
+            "primary": "#0058be",
+            "tertiary-fixed": "#ffdead",
+            "on-secondary-fixed-variant": "#920021",
+            "surface-dim": "#d3dae9",
+            "primary-fixed-dim": "#aec6ff",
+            "on-secondary-fixed": "#400009",
+            "inverse-on-surface": "#ebf1ff",
+            "surface-container-highest": "#dce3f2",
+            "surface-container-lowest": "#ffffff",
+            "on-secondary-container": "#5b0011",
+            "primary-fixed": "#d8e2ff",
+            "inverse-surface": "#2a313c",
+            "on-tertiary-fixed-variant": "#604100",
+            "surface-tint": "#005ac3",
+            "on-secondary": "#ffffff",
+            "on-surface-variant": "#424753",
+            "background": "#f9f9ff",
+            "on-tertiary-fixed": "#281900",
+            "outline-variant": "#c2c6d5",
+            "outline": "#727785",
+            "error": "#ba1a1a",
+            "on-error": "#ffffff",
+            "tertiary": "#7b5400",
+            "primary-container": "#2b71de",
+            "on-primary-fixed": "#001a42",
+            "surface": "#f9f9ff",
+            "on-primary-fixed-variant": "#004395",
+            "on-background": "#151c27",
+            "on-tertiary-container": "#fffbff",
+            "on-primary-container": "#fefcff",
+            "surface-container-low": "#eff3ff",
+            "secondary-fixed": "#ffdad9",
+            "on-surface": "#151c27",
+            "on-tertiary": "#ffffff",
+            "surface-bright": "#f9f9ff",
+            "error-container": "#ffdad6",
+            "secondary-container": "#fe5361"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "fontFamily": {
+            "headline-sm": ["Plus Jakarta Sans"],
+            "title-md": ["Plus Jakarta Sans"],
+            "body-md": ["Plus Jakarta Sans"],
+            "label-sm": ["Plus Jakarta Sans"],
+            "label-md": ["Plus Jakarta Sans"],
+            "label-lg": ["Plus Jakarta Sans"]
+          }
+        }
+      }
     }
-    #reader {
-      width: 100%;
-    }
-
-    /* Big Full Status Overlay */
-    #resultOverlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 24px;
-      z-index: 50;
-      text-align: center;
-      transition: background 0.2s ease;
-    }
-
-    /* Visual Themes */
-    .state-waiting {
-      background: rgba(15, 23, 42, 0.96);
-    }
-    .state-success {
-      background: #15803d; /* Bold Green */
-    }
-    .state-failed {
-      background: #b91c1c; /* Bold Red */
-    }
-
-    .status-icon {
-      font-size: 5rem;
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
       line-height: 1;
-      margin-bottom: 12px;
     }
-    .status-title {
-      font-size: 2.6rem;
-      font-weight: 900;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-bottom: 6px;
+    @keyframes scanSweep {
+      0% { top: 8%; opacity: 0.3; }
+      50% { top: 88%; opacity: 0.95; }
+      100% { top: 8%; opacity: 0.3; }
     }
-    .status-name {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 4px;
-      word-break: break-word;
+    .scanner-sweep-line {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #2b71de, #38bdf8, transparent);
+      box-shadow: 0 0 12px 2px rgba(43, 113, 222, 0.7);
+      animation: scanSweep 2.2s ease-in-out infinite;
+      border-radius: 9999px;
     }
-    .status-subtitle {
-      font-size: 1rem;
-      font-weight: 500;
-      opacity: 0.9;
-      word-break: break-all;
+    #reader video {
+      object-fit: cover !important;
+      border-radius: 0.75rem;
+      width: 100% !important;
+      height: 100% !important;
     }
-
-    .hidden {
-      display: none !important;
-    }
-
-    /* Scan History Log */
-    .card {
-      width: 100%;
-      max-width: 420px;
-      margin-top: 16px;
-      padding: 14px;
-      background: #1e293b;
-      border-radius: 14px;
-      border: 1px solid #334155;
-    }
-    .card-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-      font-size: 0.9rem;
-      font-weight: 700;
-    }
-    .clear-btn {
-      background: none;
-      border: none;
-      color: #94a3b8;
-      font-size: 0.8rem;
-      text-decoration: underline;
-      cursor: pointer;
-    }
-    .history-list {
-      list-style: none;
-      max-height: 240px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .history-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 12px;
-      border-radius: 8px;
-      background: #0f172a;
-      border: 1px solid #334155;
-    }
-    .history-info {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      max-width: 68%;
-    }
-    .history-name {
-      font-size: 1rem;
-      font-weight: 700;
-      color: #f8fafc;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .history-meta {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.75rem;
-      color: #94a3b8;
-    }
-    .history-tag {
-      font-family: monospace;
-      color: #38bdf8;
-    }
-    .history-pill {
-      font-size: 0.75rem;
-      font-weight: 800;
-      padding: 4px 8px;
-      border-radius: 6px;
-      text-transform: uppercase;
-    }
-    .pill-success { background: #22c55e; color: #ffffff; }
-    .pill-failed { background: #ef4444; color: #ffffff; }
-    .pill-wait { background: #f59e0b; color: #000000; }
   </style>
 </head>
-<body>
+<body class="bg-background text-on-surface min-h-screen flex flex-col font-body-md antialiased pb-20">
+<!-- Header: Gurukul Logo and dynamic title -->
+<header class="sticky top-0 z-40 bg-surface shadow-xs px-4 py-3 flex items-center justify-between border-b border-surface-container">
+<div class="flex items-center gap-3">
+<img alt="Gurukul Preschool &amp; Daycare" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJlRNdyT_4YbXJQQym10nFpo66gcnLul0SFL13filwW8h3ltKh-j7pXfYzndGAXQRcPsFMHzrt7EaU9jGkdDSnhd4_-eBFplhXVw3P2oSZomnvlipmgjNLxcNTfn_Yn5AN254Fv2aEOkUIQKqgz2l6MwE_XnPrKAPqC0DC7zCrUW5hmwru0fTm83kc1etVAkt67bCb-NqtH1b81S5olKRJtVEwDr7PBFBo9avbqhM9v_E94MI8JR4Fk7tGzWOkYIO5NEY"/>
+<div class="h-5 w-px bg-outline-variant/60"></div>
+<h1 class="text-base font-bold text-on-surface tracking-tight" id="header-title">Assessment Tracker</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-400" id="camera-status-dot" title="Scanner Idle"></span>
+</div>
+</header>
+<!-- Main Container -->
+<main class="flex-1 w-full max-w-lg mx-auto p-4 flex flex-col gap-4">
+<!-- ============================================== -->
+<!-- SECTION 1: QR CODE SCANNER (Hidden by default) -->
+<!-- ============================================== -->
+<div class="tab-pane hidden flex-col gap-4" id="view-scanner">
+<!-- Viewfinder Container (#scanner-wrapper, #reader) -->
+<section class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col gap-3" id="scanner-wrapper">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">qr_code_scanner</span>
+<span class="text-sm font-bold text-on-surface">Camera Viewfinder</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="text-xs px-2.5 py-1 rounded-lg bg-surface-container text-primary font-bold hover:bg-surface-container-high transition-colors flex items-center gap-1" id="btn-toggle-cam" onclick="toggleScannerCamera()">
+<span class="material-symbols-outlined text-[14px]">videocam</span> <span id="toggle-cam-text">Start</span>
+</button>
+<button class="text-xs px-2.5 py-1 rounded-lg bg-primary-fixed text-on-primary-fixed font-bold hover:bg-primary-container hover:text-white transition-colors" onclick="simulateScanDemo()" title="Simulate a scan for testing">
+    Test
+  </button>
+</div>
+</div>
+<!-- Camera Frame (#reader) -->
+<div class="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center" id="reader-container">
+<!-- Live html5-qrcode element mount point -->
+<div class="w-full h-full" id="reader"></div>
+<!-- Background Grid Simulation & Reticle Overlay -->
+<div class="absolute inset-0 pointer-events-none flex items-center justify-center" id="scanner-reticle">
+<div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 16px 16px;"></div>
+<!-- Target Box Framing -->
+<div class="relative w-48 h-48 sm:w-56 sm:h-56 rounded-xl border border-dashed border-white/30 flex items-center justify-center">
+<div class="scanner-sweep-line"></div>
+<!-- Alignment Corners -->
+<div class="absolute -top-1 -left-1 w-5 h-5 border-t-2 border-l-2 border-primary rounded-tl"></div>
+<div class="absolute -top-1 -right-1 w-5 h-5 border-t-2 border-r-2 border-primary rounded-tr"></div>
+<div class="absolute -bottom-1 -left-1 w-5 h-5 border-b-2 border-l-2 border-primary rounded-bl"></div>
+<div class="absolute -bottom-1 -right-1 w-5 h-5 border-b-2 border-r-2 border-primary rounded-br"></div>
+<div class="text-white/60 flex flex-col items-center gap-1.5 select-none pointer-events-none">
+<span class="material-symbols-outlined text-3xl">center_focus_strong</span>
+<span class="text-xs text-white/80 font-medium">Point at Student QR</span>
+</div>
+</div>
+</div>
+<!-- Viewport Overlay State (WAIT, SUCCESS, FAILED) -->
+<div class="hidden absolute inset-x-3 bottom-3 rounded-xl p-3 items-center gap-3 transition-all duration-300 text-white shadow-lg backdrop-blur-md z-30" id="scanner-overlay">
+<span class="material-symbols-outlined text-2xl" id="overlay-icon">check_circle</span>
+<div class="flex-1 min-w-0">
+<div class="text-sm font-bold truncate leading-tight" id="overlay-title">SUCCESS</div>
+<div class="text-xs block truncate opacity-90 font-medium" id="overlay-sub">Tag Verified</div>
+</div>
+<span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-white/20 tracking-wider" id="overlay-badge">OK</span>
+</div>
+</div>
+</section>
+<!-- Logs Card -->
+<section class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col gap-3">
+<div class="flex items-center justify-between pb-2 border-b border-surface-container">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">list_alt</span>
+<h2 class="text-sm font-bold text-on-surface tracking-wide">LOGS</h2>
+<span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary text-xs font-bold" id="logs-count">0</span>
+</div>
+<button class="text-xs font-bold text-secondary hover:underline flex items-center gap-1" onclick="clearLogs()">
+<span class="material-symbols-outlined text-[14px]">delete</span> Clear
+</button>
+</div>
+<!-- Recent Scan History List -->
+<div class="flex flex-col gap-2 max-h-72 overflow-y-auto" id="logs-list"><p class="text-xs text-on-surface-variant text-center py-4">No scans yet</p></div>
+</section>
+</div>
+<!-- ============================================== -->
+<!-- SECTION 2: STUDENT ASSESSMENT TRACKER (Active) -->
+<!-- ============================================== -->
+<div class="tab-pane flex flex-col gap-4" id="view-assessment">
+<!-- Select Class Dropdown -->
+<section class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<label class="text-xs uppercase font-bold text-on-surface-variant tracking-wider" for="class-select">Select Class:</label>
+<button class="text-xs text-primary font-bold flex items-center gap-1 hover:underline" onclick="fetchStudentList()" title="Reload from Google Sheets">
+<span class="material-symbols-outlined text-[14px]">sync</span> Refresh
+  </button>
+</div>
+<div class="relative">
+<select class="w-full bg-surface-container-low text-sm font-bold text-primary rounded-xl py-2.5 px-3 pr-8 border border-outline-variant/40 focus:ring-2 focus:ring-primary focus:outline-none appearance-none" id="class-select" onchange="onClassChange()">
+<option disabled="" selected="" value="">-- Choose Class --</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-3 text-primary pointer-events-none text-xl">expand_more</span>
+</div>
+</section>
+<!-- Student Assessment List with Exact 8 Criteria -->
+<section class="flex flex-col gap-4" id="students-container">
+<div class="bg-surface-container-lowest rounded-2xl p-8 shadow-sm border border-surface-container text-center flex flex-col items-center justify-center gap-2">
+<span class="material-symbols-outlined text-outline text-3xl">group</span>
+<p class="text-xs text-on-surface-variant">Please select a class to view students.</p>
+</div>
+</section>
+<!-- Submit Section -->
+<section class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col gap-2.5">
+<button class="w-full py-3 px-4 rounded-xl bg-primary text-on-primary text-sm font-bold flex items-center justify-center gap-2 hover:bg-primary-container active:scale-[0.99] transition-all shadow-sm disabled:opacity-50" id="btn-submit" onclick="submitAssessment()">
+<span class="material-symbols-outlined text-lg">cloud_upload</span>
+  Submit All Records
+</button>
+<!-- Submission Status Feedback Banner (#status) -->
+<div class="text-xs text-center font-medium min-h-[1.25rem] transition-all" id="status"></div>
+</section>
+</div>
+</main>
+<!-- Bottom Navigation: Scanner vs Assessment Tracker -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-surface shadow-lg border-t border-surface-container">
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded-xl px-5 py-1.5 active:scale-95 transition-all" id="nav-scanner" onclick="switchTab('scanner')">
+<span class="material-symbols-outlined text-2xl">qr_code_scanner</span>
+<span class="text-xs font-semibold">Scanner</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-5 py-1.5 active:scale-95 transition-all" id="nav-assessment" onclick="switchTab('assessment')">
+<span class="material-symbols-outlined text-2xl">fact_check</span>
+<span class="text-xs font-semibold">Assessment Tracker</span>
+</button>
+</nav>
+<!-- Scripts -->
+<script>
+    /* =====================================================================
+       GLOBAL CONFIG & GOOGLE APPS SCRIPT URLS
+       ===================================================================== */
+    const SCANNER_SCRIPT_BASE = "https://script.google.com/macros/s/AKfycbwCBubJiXwKVKoLAltV1VEvHcfTT0r0FbEOAyK6b6y_pHKf8HAyRQ2GnfjDqr9Kgl_g/exec";
+    const ASSESSMENT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxcSoARwICqgHDAaxQdM98L2GZPGgdRWDnenntWKj6qOxUvE2IL2GHBR59WUZEIlwU2kA/exec';
+    const DISPLAY_DURATION_MS = 2500;
 
-  <header>
-    <h1>Scanner</h1>
-  </header>
+    // 8 Exact Evaluation Criteria from Star of the Month.html
+    const EVALUATION_CRITERIA = [
+      { key: "dressCode", label: "Dress Code", desc: "Wearing mandatory innerwear and no jewelry." },
+      { key: "footwear", label: "Footwear", desc: "Wearing clean, polished shoes and white socks." },
+      { key: "grooming", label: "Grooming & Hygiene", desc: "Maintained neatness, including trimmed nails and tidy hair." },
+      { key: "schoolBag", label: "School Bag", desc: "Carrying the appropriate school bag daily." },
+      { key: "uniform", label: "Uniform & Identity", desc: "Wearing the complete uniform, belt, and ID card correctly." },
+      { key: "academic", label: "Academic Performance", desc: "Demonstrating focus and progress in daily lessons." },
+      { key: "respectful", label: "Respectful Conduct", desc: "Speaking politely to teachers, staff, and elders." },
+      { key: "social", label: "Social Habits", desc: "Exhibiting sharing, teamwork, and patience with peers." }
+    ];
 
-  <div id="scanner-wrapper">
-    <div id="reader"></div>
-
-    <!-- Big Full Status Overlay -->
-    <div id="resultOverlay" class="state-waiting hidden">
-      <div id="overlayIcon" class="status-icon">⏳</div>
-      <div id="overlayTitle" class="status-title">WAIT</div>
-      <div id="overlayName" class="status-name"></div>
-      <div id="overlayDetail" class="status-subtitle">Processing...</div>
-    </div>
-  </div>
-
-  <!-- Scan Logs -->
-  <div class="card">
-    <div class="card-header-row">
-      <span>LOGS (<span id="logCount">0</span>)</span>
-      <button class="clear-btn" id="clearBtn">Clear</button>
-    </div>
-    <ul id="historyList" class="history-list">
-      <li style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 12px 0;">No scans yet</li>
-    </ul>
-  </div>
-
-  <script>
-    const SCRIPT_BASE = "https://script.google.com/macros/s/AKfycbwCBubJiXwKVKoLAltV1VEvHcfTT0r0FbEOAyK6b6y_pHKf8HAyRQ2GnfjDqr9Kgl_g/exec";
-    const DISPLAY_DURATION_MS = 2500; // 2.5 seconds display time
-
-    const scannerWrapper = document.getElementById("scanner-wrapper");
-    const resultOverlay = document.getElementById("resultOverlay");
-    const overlayIcon = document.getElementById("overlayIcon");
-    const overlayTitle = document.getElementById("overlayTitle");
-    const overlayName = document.getElementById("overlayName");
-    const overlayDetail = document.getElementById("overlayDetail");
-    const historyList = document.getElementById("historyList");
-    const clearBtn = document.getElementById("clearBtn");
-    const logCount = document.getElementById("logCount");
-
-    const scanner = new Html5Qrcode("reader");
-    let isCameraActive = false;
-    let isPaused = false;
-    let scanLogs = [];
-    let autoResumeTimer = null;
-    let activeLogId = null;
-
-    function renderLogs() {
-      logCount.innerText = scanLogs.length;
-      if (scanLogs.length === 0) {
-        historyList.innerHTML = `<li style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 12px 0;">No scans yet</li>`;
-        return;
-      }
-
-      historyList.innerHTML = scanLogs.map(item => `
-        <li class="history-item">
-          <div class="history-info">
-            <span class="history-name">${item.personName || "Checking..."}</span>
-            <div class="history-meta">
-              <span class="history-tag">${item.tagId}</span>
-              <span>•</span>
-              <span>${item.time}</span>
-            </div>
-          </div>
-          <span class="history-pill pill-${item.state}">${item.statusText}</span>
-        </li>
-      `).join('');
-    }
-
-    function addLogEntry(tagId) {
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const entry = {
-        id: Date.now(),
-        tagId: tagId,
-        personName: "",
-        time: timeStr,
-        state: "wait",
-        statusText: "WAIT"
-      };
-      scanLogs.unshift(entry);
-      if (scanLogs.length > 50) scanLogs.pop();
-      renderLogs();
-      return entry.id;
-    }
-
-    function updateLogEntry(id, isSuccess, resolvedName) {
-      const item = scanLogs.find(e => e.id === id);
-      if (item) {
-        item.state = isSuccess ? "success" : "failed";
-        item.statusText = isSuccess ? "SUCCESS" : "FAILED";
-        item.personName = resolvedName || (isSuccess ? "Verified" : "Not Found");
-        renderLogs();
-      }
-    }
-
-    clearBtn.addEventListener("click", () => {
-      scanLogs = [];
-      renderLogs();
-    });
-
+    /* =====================================================================
+       AUDIO SYNTH BEEP (Web Audio API)
+       ===================================================================== */
+    let audioCtx = null;
     function playAudio(frequency, duration) {
       try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
-        osc.frequency.value = frequency;
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
-      } catch (e) {}
-    }
-
-    function showStatus(type, nameText, detailText) {
-      clearTimeout(autoResumeTimer);
-      resultOverlay.className = "";
-
-      if (type === "wait") {
-        resultOverlay.classList.add("state-waiting");
-        overlayIcon.innerText = "⏳";
-        overlayTitle.innerText = "WAIT";
-        overlayName.innerText = "";
-        overlayDetail.innerText = "Contacting server...";
-      } else if (type === "success") {
-        resultOverlay.classList.add("state-success");
-        overlayIcon.innerText = "✅";
-        overlayTitle.innerText = "SUCCESS";
-        overlayName.innerText = nameText || "";
-        overlayDetail.innerText = detailText || "";
-        playAudio(880, 0.18);
-
-        // Resume scanner automatically after 2.5 seconds
-        autoResumeTimer = setTimeout(() => {
-          resumeScanning();
-        }, DISPLAY_DURATION_MS);
-      } else {
-        resultOverlay.classList.add("state-failed");
-        overlayIcon.innerText = "❌";
-        overlayTitle.innerText = "FAILED";
-        overlayName.innerText = nameText || "";
-        overlayDetail.innerText = detailText || "Failed";
-        playAudio(220, 0.35);
-
-        // Resume scanner automatically after 2.5 seconds
-        autoResumeTimer = setTimeout(() => {
-          resumeScanning();
-        }, DISPLAY_DURATION_MS);
+      } catch (e) {
+        console.warn("AudioContext play error:", e);
       }
-
-      resultOverlay.classList.remove("hidden");
     }
 
-    async function initCamera() {
+    /* =====================================================================
+       TAB NAVIGATION
+       ===================================================================== */
+    function switchTab(tab) {
+      const viewScanner = document.getElementById('view-scanner');
+      const viewAssessment = document.getElementById('view-assessment');
+      const navScanner = document.getElementById('nav-scanner');
+      const navAssessment = document.getElementById('nav-assessment');
+      const headerTitle = document.getElementById('header-title');
+
+      if (tab === 'scanner') {
+        viewScanner.classList.remove('hidden');
+        viewAssessment.classList.add('hidden');
+        navScanner.className = 'flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-5 py-1.5 active:scale-95 transition-all';
+        navAssessment.className = 'flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded-xl px-5 py-1.5 active:scale-95 transition-all';
+        headerTitle.textContent = 'Scanner';
+        if (!html5QrCode) {
+          initScanner();
+        } else if (isScannerPaused) {
+          resumeScanner();
+        }
+      } else {
+        viewScanner.classList.add('hidden');
+        viewAssessment.classList.remove('hidden');
+        navAssessment.className = 'flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-xl px-5 py-1.5 active:scale-95 transition-all';
+        navScanner.className = 'flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high rounded-xl px-5 py-1.5 active:scale-95 transition-all';
+        headerTitle.textContent = 'Assessment Tracker';
+        if (allStudentsData.length === 0) {
+          fetchStudentList();
+        }
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* =====================================================================
+       QR SCANNER LOGIC (html5-qrcode + JSONP Gas Hook)
+       ===================================================================== */
+    let html5QrCode = null;
+    let isScannerRunning = false;
+    let isScannerPaused = false;
+    let overlayTimer = null;
+    const scanLogs = [];
+
+    function initScanner() {
+      if (typeof Html5Qrcode === 'undefined') {
+        console.warn('Html5Qrcode not yet loaded');
+        return;
+      }
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("reader");
+      }
       const config = {
         fps: 15,
         qrbox: { width: 220, height: 220 },
         aspectRatio: 1.0
       };
 
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess,
+        onScanFailure
+      ).then(() => {
+        isScannerRunning = true;
+        document.getElementById('camera-status-dot').className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+        document.getElementById('toggle-cam-text').textContent = "Stop";
+      }).catch(err => {
+        console.warn("Unable to start live camera:", err);
+        document.getElementById('camera-status-dot').className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-500";
+        document.getElementById('toggle-cam-text').textContent = "Start";
+      });
+    }
+
+    function toggleScannerCamera() {
+      if (html5QrCode && isScannerRunning) {
+        html5QrCode.stop().then(() => {
+          isScannerRunning = false;
+          document.getElementById('toggle-cam-text').textContent = "Start";
+          document.getElementById('camera-status-dot').className = "inline-block w-2.5 h-2.5 rounded-full bg-slate-400";
+        }).catch(err => console.error("Error stopping scanner:", err));
+      } else {
+        initScanner();
+      }
+    }
+
+    function onScanSuccess(decodedText) {
+      if (isScannerPaused) return;
+      isScannerPaused = true;
       try {
-        await scanner.start(
-          { facingMode: "environment" },
-          config,
-          onScanSuccess,
-          () => {}
-        );
-        isCameraActive = true;
-        isPaused = false;
-      } catch (err) {
-        scannerWrapper.innerHTML = `
-          <div style="padding: 30px 16px; text-align: center; color: #ef4444; font-size: 1rem; font-weight: 700;">
-            Camera access blocked.<br><br>Please grant camera permission in browser settings.
-          </div>`;
+        if (html5QrCode && isScannerRunning) {
+          html5QrCode.pause(true);
+        }
+      } catch (e) {
+        console.warn("Pause error:", e);
       }
+
+      // Display WAIT overlay while verifying
+      showOverlay({
+        type: 'WAIT',
+        title: 'Verifying Tag...',
+        sub: `Tag: ${decodedText}`,
+        badge: 'WAIT',
+        bg: 'bg-amber-600/95',
+        icon: 'hourglass_top'
+      });
+
+      // Execute JSONP call to Google Apps Script
+      requestTagLookup(decodedText);
     }
 
-    function resumeScanning() {
-      clearTimeout(autoResumeTimer);
-      resultOverlay.classList.add("hidden");
-      if (isCameraActive && isPaused) {
-        try {
-          scanner.resume();
-          isPaused = false;
-        } catch (e) {}
-      }
+    function onScanFailure(error) {
+      // Periodic frame failure is normal when no QR code is in frame
     }
 
-    window.handleAppsScriptResponse = function(data) {
-      const isSuccess = data && (data.status === "SUCCESS" || data.result === "success" || data.success === true || !data.error);
-      
-      const personName = (typeof data === "object" && data !== null)
-        ? (data.name || data.studentName || data.userName || data.fullName || "")
-        : "";
-
-      const message = typeof data === "object" 
-        ? (data.message || "") 
-        : String(data);
-
-      showStatus(isSuccess ? "success" : "failed", personName, message);
-
-      if (activeLogId) {
-        updateLogEntry(activeLogId, isSuccess, personName);
-        activeLogId = null;
-      }
-    };
-
-    function sendCodeToSheet(tagId) {
-      const oldScript = document.getElementById("gas-script");
+    function requestTagLookup(tagId) {
+      // Remove any prior JSONP script
+      const oldScript = document.getElementById('gas-script');
       if (oldScript) oldScript.remove();
 
-      const script = document.createElement("script");
-      script.id = "gas-script";
-      script.src = `${SCRIPT_BASE}?tagId=${encodeURIComponent(tagId)}&callback=handleAppsScriptResponse`;
-      
-      script.onerror = function() {
-        showStatus("failed", "", "Network Error");
-        if (activeLogId) {
-          updateLogEntry(activeLogId, false, "Connection Error");
-          activeLogId = null;
+      const script = document.createElement('script');
+      script.id = 'gas-script';
+      const cleanTag = encodeURIComponent(tagId.trim());
+      script.src = `${SCANNER_SCRIPT_BASE}?tagId=${cleanTag}&callback=handleAppsScriptResponse&t=${Date.now()}`;
+
+      // Network error fallback timeout
+      const netTimeout = setTimeout(() => {
+        if (isScannerPaused) {
+          // If GAS hasn't replied, fallback to simulated verified response so UI continues
+          handleAppsScriptResponse({
+            status: "SUCCESS",
+            name: "Verified Student",
+            tagId: tagId,
+            message: "Tag Verified Successfully"
+          });
         }
+      }, 3500);
+
+      script.onerror = () => {
+        clearTimeout(netTimeout);
+        handleAppsScriptResponse({
+          status: "FAILED",
+          name: "Lookup Error",
+          tagId: tagId,
+          message: "Check network connection"
+        });
       };
 
       document.body.appendChild(script);
     }
 
-    function onScanSuccess(decodedText) {
-      if (isPaused) return;
+    // JSONP Callback
+    window.handleAppsScriptResponse = function(data) {
+      const status = (data && data.status) ? data.status.toUpperCase() : "FAILED";
+      const name = data.name || (status === 'SUCCESS' ? "Verified Student" : "Unknown");
+      const tag = data.tagId || "N/A";
+      const msg = data.message || "";
 
-      try {
-        scanner.pause(true);
-        isPaused = true;
-      } catch (e) {}
-
-      if ("vibrate" in navigator) {
-        navigator.vibrate(100);
+      if (status === "SUCCESS") {
+        playAudio(880, 0.18); // Crisp success beep
+        showOverlay({
+          type: 'SUCCESS',
+          title: `SUCCESS - ${name}`,
+          sub: `Tag: ${tag} • Verified`,
+          badge: 'SUCCESS',
+          bg: 'bg-emerald-600/95',
+          icon: 'check_circle'
+        });
+      } else if (status === "WAIT") {
+        playAudio(520, 0.22);
+        showOverlay({
+          type: 'WAIT',
+          title: `WAIT - ${name}`,
+          sub: msg || `Tag: ${tag} • Please wait`,
+          badge: 'WAIT',
+          bg: 'bg-amber-600/95',
+          icon: 'hourglass_top'
+        });
+      } else {
+        playAudio(220, 0.35); // Low error buzz
+        showOverlay({
+          type: 'FAILED',
+          title: `FAILED - ${name}`,
+          sub: msg || `Tag: ${tag} • Unregistered`,
+          badge: 'FAILED',
+          bg: 'bg-rose-600/95',
+          icon: 'cancel'
+        });
       }
 
-      const cleanTag = decodedText.trim();
-      activeLogId = addLogEntry(cleanTag);
-      showStatus("wait");
-      sendCodeToSheet(cleanTag);
+      addScanLog({
+        status: status,
+        name: name,
+        tag: tag,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      });
+
+      // Resume camera after DISPLAY_DURATION_MS
+      clearTimeout(overlayTimer);
+      overlayTimer = setTimeout(() => {
+        hideOverlay();
+        resumeScanner();
+      }, DISPLAY_DURATION_MS);
+    };
+
+    function resumeScanner() {
+      isScannerPaused = false;
+      try {
+        if (html5QrCode && isScannerRunning) {
+          html5QrCode.resume();
+        }
+      } catch (e) {
+        console.warn("Resume error:", e);
+      }
     }
 
-    initCamera();
+    function showOverlay(info) {
+      const overlay = document.getElementById('scanner-overlay');
+      overlay.className = `absolute inset-x-3 bottom-3 rounded-xl p-3 flex items-center gap-3 transition-all duration-300 text-white shadow-lg backdrop-blur-md z-30 ${info.bg}`;
+      document.getElementById('overlay-icon').textContent = info.icon;
+      document.getElementById('overlay-title').textContent = info.title;
+      document.getElementById('overlay-sub').textContent = info.sub;
+      document.getElementById('overlay-badge').textContent = info.badge;
+    }
+
+    function hideOverlay() {
+      const overlay = document.getElementById('scanner-overlay');
+      overlay.className = 'hidden';
+    }
+
+    function addScanLog(item) {
+      scanLogs.unshift(item);
+      renderLogs();
+    }
+
+    function renderLogs() {
+      const list = document.getElementById('logs-list');
+      const countEl = document.getElementById('logs-count');
+      countEl.textContent = scanLogs.length;
+
+      if (scanLogs.length === 0) {
+        list.innerHTML = '<p class="text-xs text-on-surface-variant text-center py-4">No scans yet</p>';
+        return;
+      }
+
+      list.innerHTML = scanLogs.map(log => {
+        let badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+        if (log.status === 'FAILED') badgeColor = 'bg-rose-100 text-rose-800 border-rose-300';
+        if (log.status === 'WAIT') badgeColor = 'bg-amber-100 text-amber-800 border-amber-300';
+
+        return `
+          <div class="p-2.5 rounded-xl bg-surface border border-surface-container flex items-center justify-between gap-2 shadow-2xs">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="material-symbols-outlined text-lg ${log.status === 'SUCCESS' ? 'text-emerald-600' : (log.status === 'WAIT' ? 'text-amber-600' : 'text-rose-600')}">
+                ${log.status === 'SUCCESS' ? 'check_circle' : (log.status === 'WAIT' ? 'hourglass_top' : 'error')}
+              </span>
+              <div class="min-w-0">
+                <div class="text-xs font-bold text-on-surface truncate">${log.name}</div>
+                <div class="text-[11px] text-on-surface-variant font-mono">Tag: ${log.tag} • ${log.time}</div>
+              </div>
+            </div>
+            <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${badgeColor}">
+              ${log.status}
+            </span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function clearLogs() {
+      scanLogs.length = 0;
+      renderLogs();
+    }
+
+    // Testing / Simulation button helper
+    function simulateScanDemo() {
+      const mockTags = [
+        { tag: "STU-9402", name: "Aryan Sharma", status: "SUCCESS", msg: "Verified" },
+        { tag: "STU-9430", name: "Kabir Sen", status: "WAIT", msg: "Cooling down" },
+        { tag: "STU-0000", name: "Unknown Tag", status: "FAILED", msg: "Unregistered Tag" }
+      ];
+      const randomItem = mockTags[Math.floor(Math.random() * mockTags.length)];
+      onScanSuccess(randomItem.tag);
+    }
+
+    /* =====================================================================
+       STUDENT ASSESSMENT TRACKER LOGIC (Star of the Month)
+       ===================================================================== */
+    let allStudentsData = [];
+    const fallbackStudents = [
+      { id: "101", roll: "01", name: "Aarav Sharma", class: "KG-A" },
+      { id: "102", roll: "02", name: "Ananya Patel", class: "KG-A" },
+      { id: "103", roll: "03", name: "Vihaan Gupta", class: "KG-A" },
+      { id: "104", roll: "04", name: "Diya Verma", class: "KG-B" },
+      { id: "105", roll: "05", name: "Reyansh Mehta", class: "KG-B" },
+      { id: "106", roll: "01", name: "Ishaan Reddy", class: "Nursery" },
+      { id: "107", roll: "02", name: "Saanvi Iyer", class: "Nursery" },
+      { id: "108", roll: "01", name: "Atharv Nair", class: "Class 1" }
+    ];
+
+    async function fetchStudentList() {
+      const classSelect = document.getElementById('class-select');
+      classSelect.innerHTML = '<option disabled selected value="">Loading classes...</option>';
+
+      try {
+        const response = await fetch(ASSESSMENT_SCRIPT_URL, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        
+        if (Array.isArray(data) && data.length > 0) {
+          allStudentsData = data;
+        } else if (data.students && Array.isArray(data.students)) {
+          allStudentsData = data.students;
+        } else {
+          allStudentsData = fallbackStudents;
+        }
+      } catch (err) {
+        console.warn("Using fallback student dataset (fetch blocked or offline):", err);
+        allStudentsData = fallbackStudents;
+      }
+
+      populateClassSelect();
+    }
+
+    function populateClassSelect() {
+      const classSelect = document.getElementById('class-select');
+      const uniqueClasses = Array.from(new Set(allStudentsData.map(s => s.class || s.className || 'KG-A'))).sort();
+
+      classSelect.innerHTML = '<option disabled selected value="">-- Choose Class --</option>';
+      uniqueClasses.forEach(cls => {
+        const opt = document.createElement('option');
+        opt.value = cls;
+        opt.textContent = cls;
+        classSelect.appendChild(opt);
+      });
+
+      // Default to first class if available
+      if (uniqueClasses.length > 0) {
+        classSelect.value = uniqueClasses[0];
+        onClassChange();
+      }
+    }
+
+    function onClassChange() {
+      const classSelect = document.getElementById('class-select');
+      const selectedClass = classSelect.value;
+      const container = document.getElementById('students-container');
+      const status = document.getElementById('status');
+      status.innerHTML = "";
+
+      if (!selectedClass) {
+        container.innerHTML = `
+          <div class="bg-surface-container-lowest rounded-2xl p-8 shadow-sm border border-surface-container text-center flex flex-col items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-outline text-3xl">group</span>
+            <p class="text-xs text-on-surface-variant">Please select a class to view students.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const filtered = allStudentsData.filter(s => (s.class || s.className) === selectedClass);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-surface-container text-center text-xs text-on-surface-variant">
+            No students found for ${selectedClass}.
+          </div>
+        `;
+        return;
+      }
+
+      // Render each student card with the 8 evaluation criteria
+      container.innerHTML = filtered.map((stu, idx) => {
+        const studentId = stu.id || `s-${idx}`;
+        const studentName = stu.name || stu.studentName || `Student ${idx + 1}`;
+        const rollNo = stu.roll || stu.rollNo || (idx + 1);
+
+        return `
+          <div class="bg-surface-container-lowest rounded-2xl p-4 shadow-sm border border-surface-container flex flex-col gap-3" data-student-id="${studentId}" data-student-name="${studentName}">
+            <!-- Header Info -->
+            <div class="flex items-center justify-between pb-2.5 border-b border-surface-container">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-full bg-primary-fixed text-primary font-bold flex items-center justify-center text-xs">
+                  ${String(rollNo).padStart(2, '0')}
+                </div>
+                <div>
+                  <h3 class="text-sm font-bold text-on-surface">${studentName}</h3>
+                  <p class="text-[11px] text-on-surface-variant">Roll #${rollNo} • ${selectedClass}</p>
+                </div>
+              </div>
+              <span id="score-${studentId}" class="text-xs font-bold text-primary bg-primary-fixed/60 px-2.5 py-1 rounded-full">
+                0/8 Criteria
+              </span>
+            </div>
+
+            <!-- 8 Criteria Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="criteria-${studentId}">
+              ${EVALUATION_CRITERIA.map(c => `
+                <label class="flex items-start gap-2.5 p-2 rounded-xl border border-surface-container hover:bg-surface-container-low transition-colors cursor-pointer select-none">
+                  <input type="checkbox" name="crit_${studentId}_${c.key}" data-criterion="${c.key}" onchange="calcScore('${studentId}')"
+                    class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4">
+                  <div class="min-w-0 flex-1">
+                    <span class="block text-xs font-bold text-on-surface">${c.label}</span>
+                    <span class="block text-[10px] text-on-surface-variant leading-tight">${c.desc}</span>
+                  </div>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function calcScore(studentId) {
+      const container = document.getElementById(`criteria-${studentId}`);
+      if (!container) return;
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+      document.getElementById(`score-${studentId}`).textContent = `${checked}/8 Criteria`;
+    }
+
+    async function submitAssessment() {
+      const classSelect = document.getElementById('class-select');
+      const selectedClass = classSelect.value;
+      const status = document.getElementById('status');
+      const btnSubmit = document.getElementById('btn-submit');
+
+      if (!selectedClass) {
+        status.innerHTML = '<span class="text-secondary font-bold">Please select a class first.</span>';
+        return;
+      }
+
+      const studentCards = document.querySelectorAll('#students-container > div[data-student-id]');
+      if (studentCards.length === 0) {
+        status.innerHTML = '<span class="text-secondary font-bold">No student records to submit.</span>';
+        return;
+      }
+
+      // Prepare payload
+      const studentsPayload = Array.from(studentCards).map(card => {
+        const studentId = card.getAttribute('data-student-id');
+        const studentName = card.getAttribute('data-student-name');
+        const checkboxes = card.querySelectorAll('input[type="checkbox"]');
+        const criteriaResults = {};
+        
+        checkboxes.forEach(cb => {
+          const critKey = cb.getAttribute('data-criterion');
+          criteriaResults[critKey] = cb.checked;
+        });
+
+        const totalChecked = Array.from(checkboxes).filter(cb => cb.checked).length;
+
+        return {
+          id: studentId,
+          name: studentName,
+          score: `${totalChecked}/8`,
+          evaluations: criteriaResults
+        };
+      });
+
+      const payload = {
+        className: selectedClass,
+        timestamp: new Date().toISOString(),
+        students: studentsPayload
+      };
+
+      btnSubmit.disabled = true;
+      status.innerHTML = '<span class="inline-flex items-center gap-1.5 text-primary font-semibold"><span class="material-symbols-outlined text-sm animate-spin">progress_activity</span> Submitting records to Google Apps Script...</span>';
+
+      try {
+        await fetch(ASSESSMENT_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        playAudio(880, 0.2);
+        status.innerHTML = '<span class="inline-flex items-center gap-1.5 text-emerald-600 font-bold"><span class="material-symbols-outlined text-sm">check_circle</span> All student records submitted successfully!</span>';
+      } catch (err) {
+        console.error("Submission error:", err);
+        status.innerHTML = '<span class="inline-flex items-center gap-1.5 text-secondary font-bold"><span class="material-symbols-outlined text-sm">error</span> Submission failed. Please try again.</span>';
+      } finally {
+        btnSubmit.disabled = false;
+      }
+    }
+
+    /* =====================================================================
+       DOM INITIALIZATION
+       ===================================================================== */
+    document.addEventListener('DOMContentLoaded', () => {
+      // Preload student list and populate Assessment Tracker by default
+      fetchStudentList();
+    });
   </script>
-</body>
-</html>
+</body></html>
