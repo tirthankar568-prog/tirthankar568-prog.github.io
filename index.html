@@ -33,6 +33,7 @@
       color: #f1f5f9;
     }
 
+    /* Scanner Viewport */
     #scanner-wrapper {
       position: relative;
       width: 100%;
@@ -43,44 +44,12 @@
       border: 2px solid #334155;
       background: #1e293b;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
     }
     #reader {
       width: 100%;
     }
 
-    /* Start / Permission Prompt */
-    #permissionPrompt {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
-      text-align: center;
-      width: 100%;
-    }
-    .btn-start {
-      width: 80%;
-      max-width: 240px;
-      padding: 14px;
-      font-size: 1.1rem;
-      font-weight: 800;
-      color: #0f172a;
-      background: #38bdf8;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
-    }
-    .btn-start:active {
-      background: #0ea5e9;
-      transform: scale(0.98);
-    }
-
-    /* Big Status Overlay */
+    /* Big Full Status Overlay */
     #resultOverlay {
       position: absolute;
       inset: 0;
@@ -93,9 +62,17 @@
       text-align: center;
       transition: background 0.2s ease;
     }
-    .state-waiting { background: rgba(15, 23, 42, 0.96); }
-    .state-success { background: #15803d; }
-    .state-failed  { background: #b91c1c; }
+
+    /* Visual Themes */
+    .state-waiting {
+      background: rgba(15, 23, 42, 0.96);
+    }
+    .state-success {
+      background: #15803d; /* Bold Green */
+    }
+    .state-failed {
+      background: #b91c1c; /* Bold Red */
+    }
 
     .status-icon {
       font-size: 5rem;
@@ -127,7 +104,7 @@
       display: none !important;
     }
 
-    /* Logs Card */
+    /* Scan History Log */
     .card {
       width: 100%;
       max-width: 420px;
@@ -216,15 +193,6 @@
   <div id="scanner-wrapper">
     <div id="reader"></div>
 
-    <!-- Explicit tap trigger to satisfy Android permission sandbox -->
-    <div id="permissionPrompt">
-      <p style="font-size: 0.95rem; margin-bottom: 14px; color: #cbd5e1;">Tap to allow camera scan</p>
-      <button class="btn-start" id="startCameraBtn">ENABLE CAMERA</button>
-      <p id="insecureWarning" style="color: #f87171; font-size: 0.75rem; margin-top: 14px; display: none;">
-        Warning: Camera requires HTTPS. If opening from IP or file, Android will block it.
-      </p>
-    </div>
-
     <!-- Big Full Status Overlay -->
     <div id="resultOverlay" class="state-waiting hidden">
       <div id="overlayIcon" class="status-icon">⏳</div>
@@ -234,6 +202,7 @@
     </div>
   </div>
 
+  <!-- Scan Logs -->
   <div class="card">
     <div class="card-header-row">
       <span>LOGS (<span id="logCount">0</span>)</span>
@@ -246,12 +215,9 @@
 
   <script>
     const SCRIPT_BASE = "https://script.google.com/macros/s/AKfycbwCBubJiXwKVKoLAltV1VEvHcfTT0r0FbEOAyK6b6y_pHKf8HAyRQ2GnfjDqr9Kgl_g/exec";
-    const DISPLAY_DURATION_MS = 2500;
+    const DISPLAY_DURATION_MS = 2500; // 2.5 seconds display time
 
     const scannerWrapper = document.getElementById("scanner-wrapper");
-    const permissionPrompt = document.getElementById("permissionPrompt");
-    const startCameraBtn = document.getElementById("startCameraBtn");
-    const insecureWarning = document.getElementById("insecureWarning");
     const resultOverlay = document.getElementById("resultOverlay");
     const overlayIcon = document.getElementById("overlayIcon");
     const overlayTitle = document.getElementById("overlayTitle");
@@ -260,11 +226,6 @@
     const historyList = document.getElementById("historyList");
     const clearBtn = document.getElementById("clearBtn");
     const logCount = document.getElementById("logCount");
-
-    // Check secure context
-    if (window.location.protocol !== "https:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      insecureWarning.style.display = "block";
-    }
 
     const scanner = new Html5Qrcode("reader");
     let isCameraActive = false;
@@ -359,6 +320,7 @@
         overlayDetail.innerText = detailText || "";
         playAudio(880, 0.18);
 
+        // Resume scanner automatically after 2.5 seconds
         autoResumeTimer = setTimeout(() => {
           resumeScanning();
         }, DISPLAY_DURATION_MS);
@@ -370,6 +332,7 @@
         overlayDetail.innerText = detailText || "Failed";
         playAudio(220, 0.35);
 
+        // Resume scanner automatically after 2.5 seconds
         autoResumeTimer = setTimeout(() => {
           resumeScanning();
         }, DISPLAY_DURATION_MS);
@@ -378,7 +341,7 @@
       resultOverlay.classList.remove("hidden");
     }
 
-    async function startCameraDirectly() {
+    async function initCamera() {
       const config = {
         fps: 15,
         qrbox: { width: 220, height: 220 },
@@ -386,46 +349,21 @@
       };
 
       try {
-        // Enumerate devices to force Android permission prompt
-        const devices = await Html5Qrcode.getCameras();
-        
-        let backCameraId = null;
-        if (devices && devices.length) {
-          const backCam = devices.find(d => d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("rear") || d.label.toLowerCase().includes("environment"));
-          backCameraId = backCam ? backCam.id : devices[devices.length - 1].id;
-        }
-
-        const cameraChoice = backCameraId ? backCameraId : { facingMode: "environment" };
-
         await scanner.start(
-          cameraChoice,
+          { facingMode: "environment" },
           config,
           onScanSuccess,
           () => {}
         );
-
-        permissionPrompt.style.display = "none";
         isCameraActive = true;
         isPaused = false;
       } catch (err) {
-        permissionPrompt.innerHTML = `
-          <div style="padding: 16px; color: #ef4444; font-size: 0.9rem; font-weight: 700;">
-            Permission Denied or Camera Inaccessible.<br><br>
-            <span style="font-weight: 400; font-size: 0.8rem; color: #cbd5e1;">
-              1. Tap the lock/info icon in the browser address bar.<br>
-              2. Change Camera permission to <b>Allow</b>.<br>
-              3. Refresh this page.
-            </span>
+        scannerWrapper.innerHTML = `
+          <div style="padding: 30px 16px; text-align: center; color: #ef4444; font-size: 1rem; font-weight: 700;">
+            Camera access blocked.<br><br>Please grant camera permission in browser settings.
           </div>`;
       }
     }
-
-    startCameraBtn.addEventListener("click", () => {
-      startCameraDirectly();
-    });
-
-    // Auto-attempt start on load; if browser blocks, user clicks button
-    startCameraDirectly().catch(() => {});
 
     function resumeScanning() {
       clearTimeout(autoResumeTimer);
@@ -440,10 +378,14 @@
 
     window.handleAppsScriptResponse = function(data) {
       const isSuccess = data && (data.status === "SUCCESS" || data.result === "success" || data.success === true || !data.error);
+      
       const personName = (typeof data === "object" && data !== null)
         ? (data.name || data.studentName || data.userName || data.fullName || "")
         : "";
-      const message = typeof data === "object" ? (data.message || "") : String(data);
+
+      const message = typeof data === "object" 
+        ? (data.message || "") 
+        : String(data);
 
       showStatus(isSuccess ? "success" : "failed", personName, message);
 
@@ -489,6 +431,8 @@
       showStatus("wait");
       sendCodeToSheet(cleanTag);
     }
+
+    initCamera();
   </script>
 </body>
 </html>
